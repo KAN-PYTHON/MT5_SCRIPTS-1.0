@@ -13,9 +13,6 @@ MANGER_PASSWORD = 'hf7jrf83er'
 SYMBOL_SUBSTR = ''
 
 # First and Second log files
-
-
-# Inbuilt function to remove files
 os.remove('log_update.log')
 os.remove('log_error.log')
 logger_info = mt5.setup_logger('logger_info', 'log_update.log')
