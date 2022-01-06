@@ -1,18 +1,25 @@
 # ====================================================================
 # MT5 Script for update quotes filtration properties of symbols
 # ====================================================================
+import os
 import datetime
 import json
 import mt5_webapi_lib as mt5
-import logging
-
-logging.basicConfig(filename="symbols_update.log", level=logging.INFO)
 
 # Constants of MT5 Server
 MT5_SERVER = 'webapi.educationvector.com'
 MANGER_LOGIN = '1003'
 MANGER_PASSWORD = 'hf7jrf83er'
 SYMBOL_SUBSTR = ''
+
+# First and Second log files
+
+
+# Inbuilt function to remove files
+os.remove('log_update.log')
+os.remove('log_error.log')
+logger_info = mt5.setup_logger('logger_info', 'log_update.log')
+logger_error = mt5.setup_logger('logger_error', 'log_error.log')
 
 # Open session and get symbols count
 # /api/symbol/total - Get symbols count total
@@ -21,7 +28,8 @@ session = mt5.connect(MT5_SERVER, MANGER_LOGIN, MANGER_PASSWORD)
 try:
     symbols_total = session.get('https://' + MT5_SERVER + '/api/symbol/total')
 except Exception:
-    logging.error(str(datetime.datetime.now()) + ' Can\'t get the count of symbols')
+    logger_info.info('Can\'t get the count of symbols')
+    logger_error.error('Can\'t get the count of symbols')
     exit()
 
 retcode = symbols_total.json().get('retcode')
@@ -29,11 +37,13 @@ answer = symbols_total.json().get('answer')
 
 if retcode == "0 Done" and len(answer) != 0:
     symbols_total = int(symbols_total.json().get('answer')['total'])
-    logging.info('\n' + 'START at ' + str(datetime.datetime.now()) + '\n' + 'Symbols total: ' + str(symbols_total) + '\n')
+    logger_info.info('\n' + 'START at ' + str(datetime.datetime.now()) + '\n' + 'Symbols total: ' +
+                     str(symbols_total) + '\n')
+    logger_error.error('\n' + 'START at ' + str(datetime.datetime.now()) + '\n' + 'Symbols total: ' +
+                       str(symbols_total) + '\n')
 else:
-    print('Error:', symbols_total.json().get('retcode'))
-    logging.error(str(datetime.datetime.now()) + ' Can\'t get the count of symbols' +
-                  str(symbols_total.status_code))
+    logger_info.info('Can\'t get the count of symbols' + str(symbols_total.status_code))
+    logger_error.error('Can\'t get the count of symbols' + str(symbols_total.status_code))
     exit()
 
 # Main cycle while
@@ -47,7 +57,8 @@ while i < symbols_total:
     try:
         symbol_property = session.get('https://' + MT5_SERVER + '/api/symbol/next?index=' + str(i))
     except Exception:
-        logging.error(str(datetime.datetime.now()) + ' Can\'t get the symbol property, ID: ' + str(i))
+        logger_info.info(' Can\'t get the symbol property, ID: ' + str(i))
+        logger_error.error(' Can\'t get the symbol property, ID: ' + str(i))
         i += 1
         continue
 
@@ -57,7 +68,8 @@ while i < symbols_total:
     if retcode == "0 Done" and len(answer) != 0:
         symbol_name = str(symbol_property.json().get('answer')['Symbol'])
     else:
-        logging.error(str(datetime.datetime.now()) + ' Can\'t get the symbol name, ID: ' + str(i))
+        logger_info.info('Can\'t get the symbol name, ID: ' + str(i))
+        logger_error.error('Can\'t get the symbol name, ID: ' + str(i))
         i += 1
         continue
 
@@ -66,7 +78,8 @@ while i < symbols_total:
         symbol_price = session.get('https://' + MT5_SERVER + '/api/tick/last',
                                    params={'symbol': symbol_name, 'trans_id': 0}, verify=False, timeout=2)
     except Exception:
-        logging.error(str(datetime.datetime.now()) + ' Can\'t get the symbol price, ID: ' + str(i) + '; ' + symbol_name)
+        logger_info.info('Can\'t get the symbol price, ID: ' + str(i) + '; ' + symbol_name)
+        logger_error.error('Can\'t get the symbol price, ID: ' + str(i) + '; ' + symbol_name)
         i += 1
         continue
 
@@ -76,7 +89,8 @@ while i < symbols_total:
     if retcode == "0 Done" and len(answer) != 0:
         symbol_path = symbol_property.json().get('answer')['Path']
         if symbol_path.find(SYMBOL_SUBSTR) < 0:
-            logging.error(str(datetime.datetime.now()) + ' Symbol skipped, ID: ' + str(i) + '; ' + symbol_name)
+            logger_info.info('Symbol skipped, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Symbol skipped, ID: ' + str(i) + '; ' + symbol_name)
             i += 1
             continue
 
@@ -86,7 +100,8 @@ while i < symbols_total:
         symbol_spread = int((symbol_ask - symbol_bid) * 10 ** int(symbol_digits))
 
         if symbol_spread == 0:
-            logging.error(str(datetime.datetime.now()) + ' Symbol spread error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_info.info('Symbol spread error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Symbol spread error, ID: ' + str(i) + '; ' + symbol_name)
             i += 1
             continue
         # logging.info(symbol_name + '/' + str(symbol_digits) + '/' + str(symbol_bid) + '/' + str(symbol_ask))
@@ -105,7 +120,8 @@ while i < symbols_total:
             symbol_update = session.post('https://' + MT5_SERVER + '/api/symbol/add?', symbol_property,
                                      verify=False, timeout=2)
         except Exception:
-            logging.error(str(datetime.datetime.now()) + ' Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_name)
+            logger_info.info('Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_name)
             i += 1
             continue
 
@@ -113,22 +129,25 @@ while i < symbols_total:
         answer = symbol_update.json().get('answer')
 
         if retcode == "0 Done" and len(answer) != 0:
-            logging.info(str(datetime.datetime.now()) + ' Update, ID: ' + str(i) + '; ' + symbol_name + ' (' +
-                         str(symbol_spread) + '/' +
-                         str(symbol_spread * 10) + '/' +
-                         str(symbol_spread * 20) + '/' +
-                         str(symbol_spread * 100) + ')' + ' -> Ok')
+            logger_info.info('Update, ID: ' + str(i) + '; ' + symbol_name + ' (' +
+                             str(symbol_spread) + '/' +
+                             str(symbol_spread * 10) + '/' +
+                             str(symbol_spread * 20) + '/' +
+                             str(symbol_spread * 100) + ')' + ' -> Ok')
             updated_count += 1
         else:
-            logging.error(str(datetime.datetime.now()) + ' Update error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_info.info('Update error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Update error, ID: ' + str(i) + '; ' + symbol_name)
             i += 1
             continue
     else:
-        logging.error(str(datetime.datetime.now()) + ' Request price error, ID: ' + str(i) + '; ' + symbol_name)
+        logger_info.info('Request price error, ID: ' + str(i) + '; ' + symbol_name)
+        logger_error.error('Request price error, ID: ' + str(i) + '; ' + symbol_name)
         i += 1
         continue
     i += 1
 
-logging.info('\n' + 'END at ' + str(datetime.datetime.now()) + '\n' + 'Updated symbols: ' + str(updated_count) + '\n')
+logger_info.info('\n' + 'END at ' + str(datetime.datetime.now()) + '\n' + 'Updated symbols: ' + str(updated_count) +
+                 '\n')
 # End of while
 # End of PROGRAM

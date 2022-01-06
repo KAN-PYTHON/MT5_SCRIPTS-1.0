@@ -2,14 +2,33 @@
 # Библтотека функция для работы с MT5 WebAPI
 #====================================================================================
 
+import logging
+import hashlib
+import secrets
+import requests
+
+
+def setup_logger(name, log_file, level=logging.INFO):
+    # Функция для создания нескольких log файлов
+
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler(log_file)
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    return logger
+    # Конец функции
+    # Пример:
+    # logger_info = setup_logger('logger_info', 'log_info.log')
+    # logger_info.info('This is just info message')
+    # logger_error = setup_logger('logger_info', 'log_error.log')
+    # logger_error.error('This is just info message')
+
+
 def connect(server, manager, password):
     # Устанавливаем постоянно HTTPS соединение с MT5 WebAPI по менеджерскому логину
     # Возвращает requests.Session() или код ответа сервера status_code
-
-    import requests
-    import json
-    import hashlib
-    import secrets
 
     # Создаем сессию и отправляем первый запрос
     session = requests.Session()
@@ -33,7 +52,7 @@ def connect(server, manager, password):
     if request_result.status_code == 200:
         return(session)
     else:
-        return(request_result.status_code)
+        return(0)
     
     # Конец функции
     # Пример: print(connect('webapi.educationvector.com', '1003', 'hf7jrf83er'))
@@ -42,10 +61,6 @@ def connect(server, manager, password):
 def close_position(server, manager, password, account, session):
     # Закрываем первую в списке открытую позицию на счету account
     # Возвращает количество оставшихся открытых позиций
-
-    import requests
-    import json
-    import mt5_webapi_lib as mt5
 
     # Получаем данные всех открытых позиций
     request_result = session.get('https://' + server + '/api/position/get_page?login=' + account + '&offset=0&total=0')
@@ -81,9 +96,6 @@ def close_position(server, manager, password, account, session):
 def pcount(server, account, session):
     # Возвращает количество открытых позиций
 
-    import requests
-    import json
-    
     # Получаем данные всех открытых позиций
     request_result = session.get('https://' + server + '/api/position/get_page?login=' + account + '&offset=0&total=0')
     positions_count = len(request_result.json().get('answer'))
@@ -97,9 +109,6 @@ def pcount(server, account, session):
 def ord_count(server, account, session):
     # Возвращает количество отложенных ордеров
 
-    import requests
-    import json
-    
     request_result = session.get('https://' + server + '/api/order/get_total?login=' + account + '&offset=0&total=0')
     orders_count = request_result.json().get('answer')['total']
 
@@ -112,9 +121,6 @@ def ord_count(server, account, session):
 def del_order(server, account, session):
     # Закрываем первую в списке открытую позицию на счету account
     # Возвращает количество оставшихся открытых позиций
-
-    import requests
-    import json
 
     # Получаем данные всех отложенных ордеров
     request_result = session.get('https://' + server + '/api/order/get_page?login=' + account + '&offset=0&total=0')
@@ -139,9 +145,6 @@ def mod_account_rights(server, account, session, rights):
     # Параметр rights определяется как сумма прав IMTUser::EnUsersRights
     # 16743 - разрешено все кроме торговли
     # 16739 - разрешено все
-
-    import requests
-    import json
 
     rights = int(rights)
     request_str = 'https://' + server + '/api/user/get?login=' + account
