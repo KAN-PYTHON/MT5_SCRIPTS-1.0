@@ -5,16 +5,21 @@ import os
 import datetime
 import json
 import mt5_webapi_lib as mt5
+import urllib3
+urllib3.disable_warnings()
 
 # Constants of MT5 Server
 MT5_SERVER = 'webapi.educationvector.com'
 MANGER_LOGIN = '1003'
 MANGER_PASSWORD = 'hf7jrf83er'
 SYMBOL_SUBSTR = ''
+symbols_total = ''
 
 # First and Second log files
-os.remove('log_update.log')
-os.remove('log_error.log')
+if os.path.exists('log_update.log'):
+    os.remove('log_update.log')
+if os.path.exists('log_error.log'):
+    os.remove('log_error.log')
 logger_info = mt5.setup_logger('logger_info', 'log_update.log')
 logger_error = mt5.setup_logger('logger_error', 'log_error.log')
 
@@ -49,7 +54,6 @@ i = 0
 updated_count = 0
 
 while i < symbols_total:
-
     # /api/symbol/next?index= - Get Symbol properties by index
     try:
         symbol_property = session.get('https://' + MT5_SERVER + '/api/symbol/next?index=' + str(i))
@@ -64,6 +68,7 @@ while i < symbols_total:
 
     if retcode == "0 Done" and len(answer) != 0:
         symbol_name = str(symbol_property.json().get('answer')['Symbol'])
+        symbol_name = mt5.url_decode_simbols(symbol_name)
     else:
         logger_info.info('Can\'t get the symbol name, ID: ' + str(i))
         logger_error.error('Can\'t get the symbol name, ID: ' + str(i))
@@ -72,8 +77,7 @@ while i < symbols_total:
 
     # /api/tick/last - Get Symbol prices by name
     try:
-        symbol_price = session.get('https://' + MT5_SERVER + '/api/tick/last',
-                                   params={'symbol': symbol_name, 'trans_id': 0}, verify=False, timeout=2)
+        symbol_price = session.get('https://' + MT5_SERVER + '/api/tick/last?symbol=' + symbol_name + '&trans_id=0')
     except Exception:
         logger_info.info('Can\'t get the symbol price, ID: ' + str(i) + '; ' + symbol_name)
         logger_error.error('Can\'t get the symbol price, ID: ' + str(i) + '; ' + symbol_name)
@@ -87,7 +91,7 @@ while i < symbols_total:
         symbol_path = symbol_property.json().get('answer')['Path']
         if symbol_path.find(SYMBOL_SUBSTR) < 0:
             logger_info.info('Symbol skipped, ID: ' + str(i) + '; ' + symbol_name)
-            logger_error.error('Symbol skipped, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Symbol skipped, ID: ' + str(i) + '; ' + symbol_path)
             i += 1
             continue
 
@@ -98,7 +102,7 @@ while i < symbols_total:
 
         if symbol_spread == 0:
             logger_info.info('Symbol spread error, ID: ' + str(i) + '; ' + symbol_name)
-            logger_error.error('Symbol spread error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Symbol spread error, ID: ' + str(i) + '; ' + symbol_path)
             i += 1
             continue
         # logging.info(symbol_name + '/' + str(symbol_digits) + '/' + str(symbol_bid) + '/' + str(symbol_ask))
@@ -113,12 +117,12 @@ while i < symbols_total:
         symbol_property = json.dumps(symbol_property['answer'])
 
         # Update symbols params
+        symbol_update = ''
         try:
-            symbol_update = session.post('https://' + MT5_SERVER + '/api/symbol/add?', symbol_property,
-                                     verify=False, timeout=2)
+            symbol_update = session.post('https://' + MT5_SERVER + '/api/symbol/add?', symbol_property)
         except Exception:
             logger_info.info('Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_name)
-            logger_error.error('Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Can\'t get update the symbol, ID: ' + str(i) + '; ' + symbol_path)
             i += 1
             continue
 
@@ -134,7 +138,7 @@ while i < symbols_total:
             updated_count += 1
         else:
             logger_info.info('Update error, ID: ' + str(i) + '; ' + symbol_name)
-            logger_error.error('Update error, ID: ' + str(i) + '; ' + symbol_name)
+            logger_error.error('Update error, ID: ' + str(i) + '; ' + symbol_path)
             i += 1
             continue
     else:
