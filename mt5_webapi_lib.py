@@ -11,6 +11,7 @@ def url_decode_simbols(url_string):
     # Функция заменяет символы типа " ", "&", "#" на код символа для url типа "&" = "%26"
     url_string = url_string.replace(" ", "%20")
     url_string = url_string.replace("&", "%26")
+    url_string = url_string.replace("#", "%23")
     return url_string
 
 def setup_logger(name, log_file, level=logging.INFO):
