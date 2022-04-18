@@ -1,139 +1,56 @@
-from tkinter import *
-from tkinter.ttk import Combobox
-from tkinter.ttk import Checkbutton
-from tkinter.ttk import Radiobutton
-from tkinter import scrolledtext
-from tkinter import messagebox
-from tkinter.ttk import Progressbar
-from tkinter import ttk
-from tkinter import Menu
-def clicked():
-    res = "Привет {}".format(txt.get())
-    lbl.configure(text=res)
+import mt5_webapi_lib as mt5
+import time
+# Начальные установки подключения к MT5
+server = 'webapi.educationvector.com'
+manager = '1003'
+password = 'hf7jrf83er'
 
-def clicked1():
-    lbl.configure(text=selected.get())
+# Получаем значение account из внешней DB
+account = '111704'
 
-def clicked2():
-    messagebox.showinfo('Заголовок', 'Текст0')
-    messagebox.showwarning('Заголовок', 'Текст1')  # показывает предупреждающее сообщение
-    messagebox.showerror('Заголовок', 'Текст2')  # показывает сообщение об ошибке
-    res = messagebox.askquestion('Заголовок', 'askquestion')
-    res = messagebox.askyesno('Заголовок', 'askyesno')
-    res = messagebox.askyesnocancel('Заголовок', 'askyesnocancel')
-    res = messagebox.askokcancel('Заголовок', 'askokcancel')
-    res = messagebox.askretrycancel('Заголовок', 'askretrycancel')
 
-'''
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-lbl = Label(window, text="Привет")
-lbl.grid(column=0, row=0)
-txt = Entry(window, width=10)
-txt.grid(column=1, row=0)
-txt.focus()
-btn = Button(window, text="Клик!", command=clicked)
-btn.grid(column=2, row=0)
-window.mainloop()
+def convert_to_eur(server, account, session):
+    # Функция конвертирует Equity счета в заданную валюту
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-combo = Combobox(window)
-combo['values'] = (1, 2, 3, 4, 5, "Текст")
-combo.current(1)  # установите вариант по умолчанию
-combo.grid(column=0, row=0)
-window.mainloop()
+    # /api/user/get?login= - Свойства пользователя
+    user_properties = session.get('https://' + server + '/api/user/get?login=' + account, verify=False)
+    group_name = user_properties.json().get('answer')['Group']
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-chk_state = BooleanVar()
-chk_state.set(True)  # задайте проверку состояния чекбокса
-chk = Checkbutton(window, text='Выбрать', var=chk_state)
-chk.grid(column=0, row=0)
-window.mainloop()
+    # /api/group/get?group= - Свойства группы
+    group_properties = session.get(
+        'https://' + server + '/api/group/get?group=' + group_name, verify=False)
+    group_currency = group_properties.json().get('answer')['Currency']
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-selected = IntVar()
-rad1 = Radiobutton(window,text='Первый', value=1, variable=selected)
-rad2 = Radiobutton(window,text='Второй', value=2, variable=selected)
-rad3 = Radiobutton(window,text='Третий', value=3, variable=selected)
-btn = Button(window, text="Клик", command=clicked1)
-lbl = Label(window)
-rad1.grid(column=0, row=0)
-rad2.grid(column=1, row=0)
-rad3.grid(column=2, row=0)
-btn.grid(column=3, row=0)
-lbl.grid(column=0, row=1)
-window.mainloop()
+    # /api/user/account/get?login= - Свойства счета
+    account_properties = session.get('https://' + server + '/api/user/account/get?login=' + account, verify=False)
+    account_equity = float(account_properties.json().get('answer')['Equity'])
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-txt = scrolledtext.ScrolledText(window, width=30, height=10)
-txt.grid(column=0, row=0)
-txt.insert(INSERT, 'Текстовое поле')
-# txt.delete(1.0, END)  # мы передали координаты очистки
-window.mainloop()
+    # Если валюты совпадают, возвращаем Equity
+    if group_currency == 'EUR':
+        return (account_equity)
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-btn = Button(window, text='Клик', command=clicked2)
-btn.grid(column=0, row=0)
-window.mainloop()
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-var = IntVar()
-var.set(36)
-spin = Spinbox(window, from_=0, to=100, width=5, textvariable=var)
-# spin = Spinbox(window, values=(3, 8, 11), width=5)
-spin.grid(column=0, row=0)
-window.mainloop()
+
+    if group_currency == 'USD':
+       currency_pair = 'EURUSD'
+    elif group_currency == 'GBP':
+        currency_pair = 'EURGBP'
+
+    current_price = session.get('https://' + server + '/api/tick/last?symbol='+currency_pair+'&trans_id=0', verify=False)
+    price = float(current_price.json().get('answer')[0]['Bid'])
+    account_equity = account_equity * price
+    return (account_equity)
+    # Конец функции
+
+
+session = mt5.connect(server, manager, password)
+account_equity = convert_to_eur(server, account, session)
+print('Equity =', account_equity+'EUR')
+
+
 
 '''
 
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-style = ttk.Style()
-style.theme_use('default')
-style.configure("black.Horizontal.TProgressbar", background='black')
-
-
-'''
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-menu = Menu(window)
-new_item = Menu(menu)
-new_item = Menu(menu, tearoff=0)
-new_item.add_command(label='Новый')
-new_item.add_separator()
-new_item.add_command(label='Изменить')
-menu.add_cascade(label='Файл', menu=new_item)
-window.config(menu=menu)
-new_item.add_command(label='Новый', command=clicked)
-window.mainloop()
-
-window = Tk()
-window.title("Добро пожаловать в приложение PythonRu")
-window.geometry('400x250')
-tab_control = ttk.Notebook(window)
-tab1 = ttk.Frame(tab_control)
-tab_control.add(tab1, text='Первая')
-tab2 = ttk.Frame(tab_control)
-tab_control.add(tab2, text='Вторая')
-lbl1 = Label(tab1, text= 'Во тута отодвинуто ...', padx=10, pady=10)
-lbl1.grid(column=0, row=0)
-lbl2 = Label(tab2, text='Вкладка 2')
-lbl2.grid(column=0, row=0)
-tab_control.pack(expand=2, fill='both')
-window.mainloop()
+if group_properties.json().get('answer')['Currency'] == 'USD':
+    print()
 '''
